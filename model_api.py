@@ -1,8 +1,4 @@
-from transformers import (
-    pipeline,
-    DistilBertTokenizerFast,
-    DistilBertForSequenceClassification,
-)
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +6,7 @@ import os
 from groq import Groq
 from dotenv import load_dotenv
 
-# --------- Load API Key (IMPORTANT: do not hardcode) ---------
+# --------- Load Environment ---------
 load_dotenv()
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
@@ -31,19 +27,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --------- Load Model ---------
-BASE_DIR = os.path.dirname(__file__)
+# --------- Load Model (robust path) ---------
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_NAME = "rohit2004ju/tone-classifier"
 
-model = DistilBertForSequenceClassification.from_pretrained("./results")
-tokenizer = DistilBertTokenizerFast.from_pretrained("./results")
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
 
-classifier = pipeline(
-    "text-classification",
-    model=model,
-    tokenizer=tokenizer,
-    top_k=None,  # return all class scores
-)
+# --------- Prediction Function (no pipeline for better control) ---------
+import torch
 
+def classify(text):
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
+    
+    with torch.no_grad():
+        outputs = model(**inputs)
+    
+    logits = outputs.logits
+    probs = torch.softmax(logits, dim=1).squeeze()
+
+    labels = ["Casual", "Professional", "Polite", "Friendly", "Assertive", "Formal"]
+
+    results = []
+    for i, prob in enumerate(probs):
+        results.append({
+            "label": labels[i],
+            "confidence": round(prob.item() * 100, 2)
+        })
+
+    # sort descending
+    results = sorted(results, key=lambda x: x["confidence"], reverse=True)
+    return results
 
 # --------- Rewrite Function ---------
 def rewrite(text, source_tone, target_tone):
@@ -61,29 +75,24 @@ def rewrite(text, source_tone, target_tone):
 Rewrite the following sentence from {source_tone} tone to {target_tone} tone.
 
 Rules:
-- Generate EXACTLY 3 different variations
-- Keep each variation concise (1 sentence)
-- Do not add extra meaning
-- Do not explain anything
-- Keep original intent
-- Output as a numbered list
-- Preserve specific wording when possible
+- Generate EXACTLY 3 variations
+- Keep each to one sentence
+- Preserve meaning
+- No explanations
+- Output numbered list
 
 Sentence:
 {text}
 """,
                 },
             ],
-            temperature=0.6,  # slightly higher for diversity
+            temperature=0.6,
         )
 
         output = response.choices[0].message.content.strip()
 
-        # parse numbered output into list
-        lines = output.split("\n")
         suggestions = []
-
-        for line in lines:
+        for line in output.split("\n"):
             line = line.strip()
             if line:
                 cleaned = line.lstrip("1234567890. ").strip()
@@ -91,32 +100,22 @@ Sentence:
 
         return suggestions[:3]
 
-    except Exception as e:
-        return [f"Rewrite failed: {str(e)}"]
-
+    except Exception:
+        return ["Rewrite unavailable at the moment."]
 
 # --------- Input Schema ---------
 class Profile(BaseModel):
     text: str
     target_tone: str = "Professional"
 
-
 # --------- Prediction Route ---------
 @app.post("/predict")
 def predict(data: Profile):
     try:
-        # run classifier
-        result = classifier(data.text)[0]
+        predictions = classify(data.text)
 
-        # sort predictions
-        sorted_preds = sorted(result, key=lambda x: x["score"], reverse=True)
+        detected_tone = predictions[0]["label"]
 
-        # top 2 predictions
-        top2 = sorted_preds[:2]
-
-        detected_tone = top2[0]["label"]
-
-        # rewrite
         rewritten = rewrite(
             text=data.text,
             source_tone=detected_tone,
@@ -127,22 +126,12 @@ def predict(data: Profile):
             "text": data.text,
             "detected_tone": detected_tone,
             "target_tone": data.target_tone,
-            "predictions": [
-                {
-                    "label": p["label"],
-                    "confidence": round(p["score"] * 100, 2),
-                }
-                for p in top2
-            ],
+            "predictions": predictions[:2],
             "suggestions": rewritten,
         }
 
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid input")
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 # --------- Health Route ---------
 @app.get("/")

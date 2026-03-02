@@ -1,7 +1,8 @@
 from transformers import pipeline, DistilBertTokenizerFast, DistilBertForSequenceClassification
 
 # Load trained model from results folder
-model = DistilBertForSequenceClassification.from_pretrained("./results")
+model_path = "models/tone_model"
+model = DistilBertForSequenceClassification.from_pretrained(model_path)
 tokenizer = DistilBertTokenizerFast.from_pretrained("distilbert-base-uncased")
 
 # test model
