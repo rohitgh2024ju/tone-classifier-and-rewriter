@@ -1,0 +1,8 @@
+tone_env/
+__pycache__/
+*.pyc
+.env
+.env.*
+tone_dataset.csv
+results/
+results_bert/
