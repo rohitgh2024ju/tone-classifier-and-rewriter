@@ -188,15 +188,35 @@ if st.session_state.result:
     # Suggestions
     st.subheader("✍️ Suggestions")
 
-    for suggestion in data["suggestions"]:
+    for i, suggestion in enumerate(data["suggestions"]):
+
         safe_text = html.escape(suggestion)
 
-        st.markdown(
-            f"""
-        <div class="card-row">
-            <div class="card">{suggestion}</div>
-            <button class="copy-btn" onclick="copyText(`{safe_text}`)">📋</button>
-        </div>
-        """,
-            unsafe_allow_html=True,
-        )
+        col1, col2 = st.columns([8, 1])
+
+        with col1:
+            st.markdown(f"""
+            <div style="
+                padding:14px 16px;
+                border-radius:14px;
+                background: rgba(30, 41, 59, 0.7);
+                border: 1px solid rgba(255,255,255,0.05);
+                font-size:15px;
+            ">
+                {suggestion}
+            </div>
+            """, unsafe_allow_html=True)
+
+        with col2:
+            if st.button("📋", key=f"copy_{i}"):
+
+                # 🔥 This is the ONLY reliable way
+                st.write("")  # trigger render safely
+
+                st.components.v1.html(f"""
+                    <script>
+                    navigator.clipboard.writeText("{safe_text}");
+                    </script>
+                """, height=0)
+
+                st.toast("Copied!", icon="✅")
