@@ -134,7 +134,7 @@ if st.session_state.result:
 
         with col2:
             if st.button("📋", key=f"copy_{i}"):
-                st.toast("Copied! Select below and press Ctrl+C", icon="✅")
+                st.toast("Select below and press Ctrl+C", icon="✅")
 
                 st.text_area(
                     "Copy text:", value=suggestion, height=120, key=f"copy_area_{i}"
