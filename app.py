@@ -137,5 +137,5 @@ if st.session_state.result:
                 st.toast("Copied! Select below and press Ctrl+C", icon="✅")
 
                 st.text_area(
-                    "Copy text:", value=suggestion, height=100, key=f"copy_area_{i}"
+                    "Copy text:", value=suggestion, height=120, key=f"copy_area_{i}"
                 )
