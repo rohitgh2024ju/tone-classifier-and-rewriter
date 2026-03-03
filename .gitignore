@@ -5,5 +5,4 @@ __pycache__/
 .env.*
 tone_dataset.csv
 results/
-results_bert/
 models/

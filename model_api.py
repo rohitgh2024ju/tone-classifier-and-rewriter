@@ -37,12 +37,13 @@ model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
 # --------- Prediction Function (no pipeline for better control) ---------
 import torch
 
+
 def classify(text):
     inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-    
+
     with torch.no_grad():
         outputs = model(**inputs)
-    
+
     logits = outputs.logits
     probs = torch.softmax(logits, dim=1).squeeze()
 
@@ -50,14 +51,12 @@ def classify(text):
 
     results = []
     for i, prob in enumerate(probs):
-        results.append({
-            "label": labels[i],
-            "confidence": round(prob.item() * 100, 2)
-        })
+        results.append({"label": labels[i], "confidence": round(prob.item() * 100, 2)})
 
     # sort descending
     results = sorted(results, key=lambda x: x["confidence"], reverse=True)
     return results
+
 
 # --------- Rewrite Function ---------
 def rewrite(text, source_tone, target_tone):
@@ -77,9 +76,13 @@ Rewrite the following sentence from {source_tone} tone to {target_tone} tone.
 Rules:
 - Generate EXACTLY 3 variations
 - Keep each to one sentence
-- Preserve meaning
 - No explanations
 - Output numbered list
+- Do not change the intent or type of question
+- Preserve whether the sentence is asking identity, action, or confirmation
+- Do not add new emotions or opinions
+- Do not introduce enthusiasm unless already present
+- Keep the sentence factual if the original is factual
 
 Sentence:
 {text}
@@ -103,10 +106,12 @@ Sentence:
     except Exception:
         return ["Rewrite unavailable at the moment."]
 
+
 # --------- Input Schema ---------
 class Profile(BaseModel):
     text: str
     target_tone: str = "Professional"
+
 
 # --------- Prediction Route ---------
 @app.post("/predict")
@@ -132,6 +137,7 @@ def predict(data: Profile):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 # --------- Health Route ---------
 @app.get("/")
