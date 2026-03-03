@@ -11,7 +11,8 @@ if "result" not in st.session_state:
     st.session_state.result = None
 
 # -------- CSS --------
-st.markdown("""
+st.markdown(
+    """
 <style>
 body {
     background-color: #0f172a;
@@ -38,19 +39,24 @@ h1 {
     font-weight: 500;
 }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # -------- HEADER --------
 st.markdown("<h1>🧠 Tone Analyzer</h1>", unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Rewrite your text smarter, not harder</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="subtitle">Rewrite your text smarter, not harder</div>',
+    unsafe_allow_html=True,
+)
 
 # -------- INPUT --------
 text = st.text_area("✍️ Enter your text", height=150)
 
 target_tone = st.selectbox(
-    "🎯 Target Tone",
-    ["Professional", "Friendly", "Polite", "Formal", "Assertive"]
+    "🎯 Target Tone", ["Professional", "Friendly", "Polite", "Formal", "Assertive"]
 )
+
 
 # -------- API --------
 def call_api(payload):
@@ -58,6 +64,7 @@ def call_api(payload):
         return requests.post(API_URL, json=payload, timeout=60)
     except:
         return None
+
 
 # -------- ANALYZE --------
 if st.button("🚀 Analyze", use_container_width=True):
@@ -67,10 +74,7 @@ if st.button("🚀 Analyze", use_container_width=True):
     else:
         with st.spinner("Analyzing... (first request may be slow)"):
 
-            response = call_api({
-                "text": text,
-                "target_tone": target_tone
-            })
+            response = call_api({"text": text, "target_tone": target_tone})
 
             if response and response.status_code == 200:
                 st.session_state.result = response.json()
@@ -112,7 +116,8 @@ if st.session_state.result:
         col1, col2 = st.columns([6, 1])
 
         with col1:
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div style="
                 padding:14px 16px;
                 border-radius:14px;
@@ -123,15 +128,14 @@ if st.session_state.result:
             ">
                 {suggestion}
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
         with col2:
             if st.button("📋", key=f"copy_{i}"):
                 st.toast("Copied! Select below and press Ctrl+C", icon="✅")
 
                 st.text_area(
-                    "Copy text:",
-                    value=suggestion,
-                    height=80,
-                    key=f"copy_area_{i}"
+                    "Copy text:", value=suggestion, height=100, key=f"copy_area_{i}"
                 )
